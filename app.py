@@ -10,6 +10,7 @@ import os
 
 
 # 1. Load and preprocess the data
+# 1. Load and preprocess the data
 df = pd.read_csv('cleaned_data.csv')
 df['features'] = df['programming_languages'] + ' ' +df['programming_languages'] + ' ' + df['frameworks'] + ' ' + df['exp_level'] + ' ' + df['country']
 
@@ -44,20 +45,12 @@ def get_recommendations(job_category,skills, experience_level, country, top_n=5)
 
 
 # Gemini AI setup
-GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')  # Replace with your actual API key
+GOOGLE_API_KEY = "AIzaSyCEPEXd994vED407jK0d1GwnCWv1H559nc"  # Replace with your actual API key
 genai.configure(api_key=GOOGLE_API_KEY)
 model = genai.GenerativeModel('gemini-pro')
 
-def gemini_chat(conversation_history, user_input, recommendations=None):
-    prompt = f"Conversation history:\n"
-    for message in conversation_history:
-        prompt += f"{message}\n"
-    prompt += f"User: {user_input}\n"
-    if recommendations is not None:
-        recommendations_str = recommendations.to_string()
-        prompt += f"Job recommendations (not visible to user):\n{recommendations_str}\n"
-    prompt += "Please respond to the user's query, taking into account the job recommendations if they are present."
-    
+def gemini_chat(conversation_history, user_input):
+    prompt = f"Conversation history: {conversation_history}\nUser: {user_input}"
     response = model.generate_content(prompt)
     return response.text
 
@@ -71,33 +64,60 @@ st.image(header_image, use_column_width=True)
 st.title("Job Recommendation")
 st.write("Find the perfect job that matches your skills and experience.")
 
+if "selected_job" not in st.session_state:
+    st.session_state.selected_job = None
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+if "recommendations" not in st.session_state:
+    st.session_state.recommendations = pd.DataFrame()
+
 # Create two columns
 col1, col2 = st.columns(2)
 
 with col1:
     with st.expander("User Input"):
-        job_category = st.selectbox("Select your job category:", ["IT Professional","Management and Leadership","AI and Machine Learning","Software Engineering" ,"Sales and Marketing","Finance and Accounting","Cybersecurity","Data Entry","DevOps and System Administration","Data Science and Analytics","Data Engineer", "Software Engineering", "Web Development", "Other"])
+        job_category = st.selectbox("Select your job category:",
+                                    ["IT Professional", "Management and Leadership", "AI and Machine Learning",
+                                     "Software Engineering", "Sales and Marketing", "Finance and Accounting",
+                                     "Cybersecurity", "Data Entry", "DevOps and System Administration",
+                                     "Data Science and Analytics", "Data Engineer", "Software Engineering",
+                                     "Web Development", "Other"])
         skills = st.text_input("Enter your skills (comma-separated):", "python")
         experience_level = st.selectbox("Select your experience level:", ["Entry Level", "Experienced", "Manager"])
-        country = st.selectbox("Select the country:", ['Egypt', 'Saudi Arabia', 'United Arab Emirates', 'Kuwait', 'Qatar', 'Australia', 'India', 'United States', 'Palestine', 'United Kingdom', 'Lebanon', 'Oman', 'Netherlands', 'Jordan', 'Sweden', 'Bahrain', 'Iraq', 'Canada', 'Turkey', 'Mozambique'])
+        country = st.selectbox("Select the country:",
+                               ['Egypt', 'Saudi Arabia', 'United Arab Emirates'])
 
     if st.button("Get Recommendations"):
         st.session_state.recommendations = get_recommendations(job_category, skills.split(','), experience_level, country)
-        st.write("Recommended jobs:")
-        st.table(st.session_state.recommendations)
-        st.session_state.messages.append({"role": "assistant", "content": "Job recommendations have been generated. You can now ask me questions about them."})
 
+if not st.session_state.recommendations.empty:
+    st.write("Recommended jobs:")
+
+    # Make each job recommendation clickable using st.button()
+    for index, job in st.session_state.recommendations.iterrows():
+        job_key = f"{job['job_category']}_{job['company_name']}_{job['city']}_{index}"  # Unique key
+        if st.button(f"{job['job_category']} at {job['company_name']} in {job['city']}", key=job_key):
+            st.session_state.selected_job = job.to_dict()  # Store selected job in session state
 with col2:
     st.subheader("Chat with our AI Job Assistant")
-    
-    # Initialize chat history
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
 
     # Display chat messages from history on app rerun
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
+
+    # Display the selected job and generate response
+    if st.session_state.selected_job:
+        selected_job = st.session_state.selected_job
+        st.write(f"You selected: {selected_job['job_category']} at {selected_job['company_name']} in {selected_job['city']}")
+
+        # Send selected job details to chatbot
+        response = gemini_chat([m["content"] for m in st.session_state.messages],
+                               f"Analyze this job: {selected_job}")
+        st.chat_message("assistant").markdown(response)
+        st.session_state.messages.append({"role": "assistant", "content": response})
 
     # React to user input
     if prompt := st.chat_input("What would you like to know about jobs or careers?"):
@@ -107,7 +127,8 @@ with col2:
         st.session_state.messages.append({"role": "user", "content": prompt})
 
         # Get AI response
-        response = gemini_chat([m["content"] for m in st.session_state.messages], prompt, st.session_state.get('recommendations'))
+        response = gemini_chat([m["content"] for m in st.session_state.messages[:-1]], prompt)
+
         # Display assistant response in chat message container
         with st.chat_message("assistant"):
             st.markdown(response)
