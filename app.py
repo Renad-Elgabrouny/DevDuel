@@ -12,7 +12,7 @@ import os
 # 1. Load and preprocess the data
 # 1. Load and preprocess the data
 df = pd.read_csv('cleaned_data.csv')
-df['features'] = df['programming_languages'] + ' ' +df['programming_languages'] + ' ' + df['frameworks'] + ' ' + df['exp_level'] + ' ' + df['country']
+df['features'] = df['job_category'] + ' ' +df['programming_languages'] + ' ' + df['frameworks'] + ' ' + df['exp_level'] + ' ' + df['country']
 
 # 2. Prepare the features and target
 tfidf = TfidfVectorizer(stop_words='english')
@@ -97,8 +97,9 @@ if not st.session_state.recommendations.empty:
 
     # Make each job recommendation clickable using st.button()
     for index, job in st.session_state.recommendations.iterrows():
-        job_key = f"{job['job_category']}_{job['company_name']}_{job['city']}_{index}"  # Unique key
-        if st.button(f"{job['job_category']} at {job['company_name']} in {job['city']}", key=job_key):
+        job_key = f"{job['job_category']}_{job['company_name']}_{job['city']}_{job['job_state']}_{index}"  # Unique key
+        button_text = f"{job['job_category']} at {job['company_name']} in {job['city']}, {job['job_state']}"
+        if st.button(button_text, key=job_key):
             st.session_state.selected_job = job.to_dict()  # Store selected job in session state
 with col2:
     st.subheader("Chat with our AI Job Assistant")
@@ -108,8 +109,15 @@ with col2:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Display the selected job and generate response
+    # Check if a new job is selected
     if st.session_state.selected_job:
+        current_job = f"{st.session_state.selected_job['job_category']}_{st.session_state.selected_job['company_name']}_{st.session_state.selected_job['city']}"
+        if "current_job" not in st.session_state or st.session_state.current_job != current_job:
+            st.session_state.current_job = current_job
+            st.session_state.job_analyzed = False  # Reset the job_analyzed flag
+
+    # Display the selected job and generate response only for new selections
+    if st.session_state.selected_job and not st.session_state.get('job_analyzed', False):
         selected_job = st.session_state.selected_job
         st.write(f"You selected: {selected_job['job_category']} at {selected_job['company_name']} in {selected_job['city']}")
 
@@ -118,6 +126,7 @@ with col2:
                                f"Analyze this job: {selected_job}")
         st.chat_message("assistant").markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
+        st.session_state.job_analyzed = True  # Mark that the job has been analyzed
 
     # React to user input
     if prompt := st.chat_input("What would you like to know about jobs or careers?"):
