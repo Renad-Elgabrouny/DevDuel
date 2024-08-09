@@ -6,6 +6,7 @@ from sklearn.preprocessing import LabelEncoder
 import streamlit as st
 from PIL import Image
 import google.generativeai as genai
+import os
 
 
 # 1. Load and preprocess the data
@@ -43,7 +44,7 @@ def get_recommendations(job_category,skills, experience_level, country, top_n=5)
 
 
 # Gemini AI setup
-GOOGLE_API_KEY = "AIzaSyCEPEXd994vED407jK0d1GwnCWv1H559nc"  # Replace with your actual API key
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')  # Replace with your actual API key
 genai.configure(api_key=GOOGLE_API_KEY)
 model = genai.GenerativeModel('gemini-pro')
 
