@@ -16,7 +16,7 @@ Our project is an innovative Job Recommendation System integrated with an AI-pow
 ## Try Our App!
 
 Experience our Job Recommendation System firsthand:
-[Job Recommender App]([https://job-recommendation-system-with-ai-chatbot.streamlit.app](https://devduel-kegejrenhg4qsngw5hxyag.streamlit.app/)/)
+[Job Recommender App](https://devduel-kegejrenhg4qsngw5hxyag.streamlit.app/)
 
 ## Project Stages
 
